@@ -1,5 +1,8 @@
 module Mandelbrot exposing (Model, computeAll, computeRow, init, view)
 
+import Canvas
+import Canvas.Settings as CanvasSettings
+import Color
 import ComplexNumbers as C exposing (ComplexNumber(..))
 import Dict exposing (Dict)
 import Html as H exposing (Html)
@@ -27,8 +30,8 @@ init size =
     { width = size
     , height = size
     , computed = Dict.empty
-    , min = ComplexNumber (Real -2) (Imaginary <| Real -2)
-    , max = ComplexNumber (Real 2) (Imaginary <| Real 2)
+    , min = ComplexNumber (Real -2) (Imaginary <| Real -1.5)
+    , max = ComplexNumber (Real 1) (Imaginary <| Real 1.5)
     }
 
 
@@ -69,7 +72,7 @@ computeCell row col model =
                 (Imaginary cIm)
 
         valueM =
-            calculate 200 c 0 c
+            calculate 100 c 0 c
     in
     case valueM of
         Just value ->
@@ -92,32 +95,37 @@ computeAll model =
 view : Model -> Html msg
 view model =
     H.div [ HA.style "padding" "8px" ]
-        (L.map (viewRow model) (L.range 0 model.height))
+        [Canvas.toHtml (model.width, model.height) []
+        (L.concatMap (viewRow model) (L.range 0 model.height))
+            ]
 
 
-viewRow : Model -> Int -> Html msg
+viewRow : Model -> Int -> List Canvas.Renderable
 viewRow model row =
-    H.div [ HA.style "height" "2px" ]
-        (L.map (viewCell model row) (L.range 0 model.width))
+    L.map (viewCell model row) (L.range 0 model.width)
 
 
-viewCell : Model -> Int -> Int -> Html msg
+viewCell : Model -> Int -> Int -> Canvas.Renderable
 viewCell model row col =
     let
         colour =
             case Dict.get ( col, row ) model.computed of
                 Just val ->
-                    "yellow"
+                    Color.yellow
 
                 Nothing ->
-                    "black"
+                    Color.black
     in
-    H.div
-        (L.map (\( key, val ) -> HA.style key val)
-            [ ( "width", "2px" )
-            , ( "height", "2px" )
-            , ( "background-color", colour )
-            , ( "display", "inline-block" )
-            ]
-        )
-        []
+    Canvas.shapes [ CanvasSettings.fill colour ] [ Canvas.rect ( toFloat col, toFloat row ) 1 1 ]
+
+
+
+-- H.div
+--     (L.map (\( key, val ) -> HA.style key val)
+--         [ ( "width", "2px" )
+--         , ( "height", "2px" )
+--         , ( "background-color", colour )
+--         , ( "display", "inline-block" )
+--         ]
+--     )
+--     []
