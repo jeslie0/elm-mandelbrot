@@ -29,7 +29,7 @@ determineColor iterations =
 viewRow : Mandelbrot.Model -> Int -> Html msg
 viewRow model row =
     H.div
-         (L.map (\(key, val) -> HA.style key val) [("height", "2px")])
+         (L.map (\(key, val) -> HA.style key val) [("height", "1px")])
          (L.map (viewCell model row) <| L.range 0 model.width)
 
 
@@ -43,8 +43,8 @@ viewCell model row col =
     in
         H.div
             (L.map (\(key,val) -> HA.style key val)
-                [ ( "width", "2px" )
-                , ( "height", "2px" )
+                [ ( "width", "1px" )
+                , ( "height", "1px" )
                 , ( "background-color", colour )
                 , ( "display", "inline-block" )
                 ])
