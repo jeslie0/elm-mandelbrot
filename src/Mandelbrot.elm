@@ -2,7 +2,7 @@ module Mandelbrot exposing (Model, computeAll, computeRow, init, view)
 
 import Canvas
 import Canvas.Settings as CanvasSettings
-import Color
+import Color exposing (Color)
 import ComplexNumbers as C exposing (ComplexNumber(..))
 import Dict exposing (Dict)
 import Html as H exposing (Html)
@@ -44,12 +44,14 @@ calculate maxIterations c iterations z =
     if iterations >= maxIterations then
         Nothing
 
-    else if R.real (C.modulus z_) >= 2 then
+    else if normSquared z_ >= 4 then
         Just iterations
 
     else
         calculate maxIterations c (iterations + 1) z_
 
+normSquared : ComplexNumber number -> number
+normSquared z = R.real (R.multiply (C.real z) (C.real z) |> R.add (R.multiply (I.imaginary <| C.imaginary z) (I.imaginary <| C.imaginary z)))
 
 computeCell : Int -> Int -> Model -> Model
 computeCell row col model =
@@ -95,9 +97,10 @@ computeAll model =
 view : Model -> Html msg
 view model =
     H.div [ HA.style "padding" "8px" ]
-        [Canvas.toHtml (model.width, model.height) []
-        (L.concatMap (viewRow model) (L.range 0 model.height))
-            ]
+        [ Canvas.toHtml ( model.width, model.height )
+            []
+            (L.concatMap (viewRow model) (L.range 0 model.height))
+        ]
 
 
 viewRow : Model -> Int -> List Canvas.Renderable
@@ -105,16 +108,29 @@ viewRow model row =
     L.map (viewCell model row) (L.range 0 model.width)
 
 
+determineColour : Int -> Color
+determineColour iterations =
+    let x = modBy 5 iterations
+    in
+    if x < 1 then
+        Color.yellow
+    else if iterations < 2 then
+        Color.orange
+    else if iterations < 3 then
+        Color.red
+    else if iterations < 4 then
+        Color.lightRed
+    else
+        Color.white
+
+
 viewCell : Model -> Int -> Int -> Canvas.Renderable
 viewCell model row col =
     let
         colour =
-            case Dict.get ( col, row ) model.computed of
-                Just val ->
-                    Color.yellow
-
-                Nothing ->
-                    Color.black
+            Dict.get ( col, row ) model.computed
+            |> Maybe.map determineColour
+            |> Maybe.withDefault Color.black
     in
     Canvas.shapes [ CanvasSettings.fill colour ] [ Canvas.rect ( toFloat col, toFloat row ) 1 1 ]
 

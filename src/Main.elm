@@ -2,7 +2,11 @@ module Main exposing (..)
 
 import Browser
 import Html as H exposing (Attribute, Html)
+import Html.Lazy as Lazy
 import Mandelbrot
+import IncrementalMandelbrot
+import ViewHtml
+import ViewCanvas
 
 
 
@@ -11,13 +15,13 @@ import Mandelbrot
 -- * MAIN
 
 
-main : Program () Mandelbrot.Model Msg
+main : Program () IncrementalMandelbrot.Model IncrementalMandelbrot.Msg
 main =
-    Browser.sandbox
-        { init = Mandelbrot.init 400
-              |> Mandelbrot.computeAll
-        , view = Mandelbrot.view
-        , update = \msg model -> model
+    Browser.document
+        { init = \_ -> IncrementalMandelbrot.init 200
+        , view = \model -> {title = "", body = [Lazy.lazy ViewHtml.view model.fractal]}
+        , update = IncrementalMandelbrot.update
+        , subscriptions = always Sub.none
         }
 
 
