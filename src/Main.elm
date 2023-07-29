@@ -14,7 +14,8 @@ import Mandelbrot
 main : Program () Mandelbrot.Model Msg
 main =
     Browser.sandbox
-        { init = Mandelbrot.init 100
+        { init = Mandelbrot.init 400
+              |> Mandelbrot.computeAll
         , view = Mandelbrot.view
         , update = \msg model -> model
         }

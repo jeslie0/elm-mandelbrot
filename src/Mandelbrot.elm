@@ -1,4 +1,4 @@
-module Mandelbrot exposing (Model, init, view)
+module Mandelbrot exposing (Model, computeAll, computeRow, init, view)
 
 import ComplexNumbers as C exposing (ComplexNumber(..))
 import Dict exposing (Dict)
@@ -17,6 +17,8 @@ type alias Model =
     { width : Int
     , height : Int
     , computed : Dict Point Int
+    , min : ComplexNumber Float
+    , max : ComplexNumber Float
     }
 
 
@@ -24,7 +26,9 @@ init : Int -> Model
 init size =
     { width = size
     , height = size
-    , computed = Dict.empty |> Dict.insert ( 5, 5 ) 1
+    , computed = Dict.empty
+    , min = ComplexNumber (Real -2) (Imaginary <| Real -2)
+    , max = ComplexNumber (Real 2) (Imaginary <| Real 2)
     }
 
 
@@ -44,16 +48,28 @@ calculate maxIterations c iterations z =
         calculate maxIterations c (iterations + 1) z_
 
 
-computeCell : Point -> Model -> Model
-computeCell ( col, row ) model =
+computeCell : Int -> Int -> Model -> Model
+computeCell row col model =
     let
+        colPercent =
+            toFloat col / toFloat model.width
+
+        rowPercent =
+            toFloat row / toFloat model.height
+
+        cRe =
+            C.real model.min |> R.add ((C.real model.max |> R.add (R.negate <| C.real model.min)) |> R.multiply (Real colPercent))
+
+        cIm =
+            (I.imaginary <| C.imaginary <| model.min) |> R.add (((I.imaginary <| C.imaginary model.max) |> R.add (R.negate <| I.imaginary <| C.imaginary model.min)) |> R.multiply (Real rowPercent))
+
         c =
             ComplexNumber
-                (Real <| 2 * toFloat col / toFloat model.width)
-                (Imaginary << Real <| 2 * toFloat row / toFloat model.height )
+                cRe
+                (Imaginary cIm)
 
         valueM =
-            calculate 100 C.zero 0 c
+            calculate 200 c 0 c
     in
     case valueM of
         Just value ->
@@ -61,6 +77,16 @@ computeCell ( col, row ) model =
 
         Nothing ->
             { model | computed = Dict.remove ( col, row ) model.computed }
+
+
+computeRow : Int -> Model -> Model
+computeRow row model =
+    L.foldl (computeCell row) model <| L.range 0 model.width
+
+
+computeAll : Model -> Model
+computeAll model =
+    L.foldl computeRow model <| L.range 0 model.height
 
 
 view : Model -> Html msg
@@ -81,7 +107,7 @@ viewCell model row col =
         colour =
             case Dict.get ( col, row ) model.computed of
                 Just val ->
-                    "yello"
+                    "yellow"
 
                 Nothing ->
                     "black"
