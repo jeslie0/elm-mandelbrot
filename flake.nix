@@ -1,5 +1,5 @@
 {
-  description = "A derivation and flake for building an elm package.";
+  description = "Generating a Mandelbrot set in Elm";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
