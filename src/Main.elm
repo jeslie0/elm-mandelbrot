@@ -38,6 +38,10 @@ port settingsSet : (Int -> msg) -> Sub msg
 port sendRow : RowData -> Cmd msg
 
 
+port sendRows : List RowData -> Cmd msg
+
+
+
 -- * MAIN
 
 
@@ -72,8 +76,7 @@ init _ size =
       , min = ComplexNumber (Real -2) (Imaginary <| Real -1.5)
       , max = ComplexNumber (Real 1) (Imaginary <| Real 1.5)
       }
-    ,  sendInitialSettings { width = size, height = size }
-
+    , sendInitialSettings { width = size, height = size }
     )
 
 
@@ -83,6 +86,7 @@ init _ size =
 
 type Msg
     = CalculateNextRow
+    | CalculateNextRows Int
     | SettingsSet
 
 
@@ -92,7 +96,7 @@ update msg model =
         SettingsSet ->
             ( model
             , Task.succeed ()
-                |> Task.perform (\_ -> CalculateNextRow)
+                |> Task.perform (\_ -> CalculateNextRows 10)
             )
 
         CalculateNextRow ->
@@ -114,9 +118,36 @@ update msg model =
                     ]
             )
 
+        CalculateNextRows n ->
+            ( { model | computedRow = model.computedRow + n }
+            , let
+                computedRowsDataHelper row acc =
+                    if row < 0 then
+                        acc
+
+                    else
+                        computedRowsDataHelper (row - 1)
+                            ({ row = model.computedRow + row
+                             , computedColours = computeRow (model.computedRow + row) model
+                             }
+                                :: acc
+                            )
+              in
+              if model.computedRow > model.height then
+                Cmd.none
+
+              else
+                Cmd.batch
+                    [ sendRows <| computedRowsDataHelper n []
+                    , Process.sleep 0
+                        |> Task.perform (\_ -> CalculateNextRows n)
+                    ]
+            )
+
 
 
 -- * SUBSCRIPTIONS
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
