@@ -1,4 +1,4 @@
-let mandlebrotCanvas;
+let canvasElement;
 let ctx;
 
 let canvasHeight;
@@ -13,7 +13,7 @@ const addRow = (rowData) => {
 
     for (let i = 0; i < computedColours.length; i++) {
         const { red, blue, green, alpha } = computedColours[i]
-        const scaledIdx= 4 * i + offset
+        const scaledIdx = 4 * i + offset
         imageData.data[scaledIdx + 0] = 255 * red
         imageData.data[scaledIdx + 1] = 255 * green
         imageData.data[scaledIdx + 2] = 255 * blue
@@ -45,16 +45,16 @@ const addRows = (rowsData) => {
 }
 
 const setInitialSettings = (settings) => {
-    const {height, width} = settings
+    const {height, width, canvasId} = settings
 
     canvasHeight = height
     canvasWidth = width
 
-    mandlebrotCanvas = document.getElementById("mandelbrot");
-    ctx = mandlebrotCanvas.getContext("2d");
+    canvasElement = document.getElementById(canvasId);
+    ctx = canvasElement.getContext("2d");
     imageData = ctx.createImageData(width, height);
 
-    app.ports.settingsSet.send(1);
+    app.ports.settingsSet.send(undefined);
 }
 
 

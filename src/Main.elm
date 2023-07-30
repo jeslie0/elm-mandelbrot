@@ -2,9 +2,12 @@ port module Main exposing (..)
 
 import Browser
 import Color
+import ColourMaps.Turbo exposing (turboColourMap)
+import ColourMaps.Viridis exposing (viridisColourMapRefined)
 import Complex as C exposing (Complex)
 import Html as H exposing (Html)
 import Html.Attributes as HA
+import Maybe
 import Process
 import Task
 
@@ -27,10 +30,17 @@ type alias RowData =
     }
 
 
-port sendInitialSettings : { height : Int, width : Int } -> Cmd msg
+type alias Settings =
+    { height : Int
+    , width : Int
+    , canvasId : String
+    }
 
 
-port settingsSet : (Int -> msg) -> Sub msg
+port sendInitialSettings : Settings -> Cmd msg
+
+
+port settingsSet : ({} -> msg) -> Sub msg
 
 
 port sendRow : RowData -> Cmd msg
@@ -46,7 +56,7 @@ port sendRows : List RowData -> Cmd msg
 main : Program () Model Msg
 main =
     Browser.document
-        { init = \flags -> init flags 800
+        { init = \flags -> init flags 1080
         , view = \model -> { title = "", body = [ view model ] }
         , update = update
         , subscriptions = subscriptions
@@ -63,18 +73,28 @@ type alias Model =
     , computedRow : Int
     , min : Complex
     , max : Complex
+    , canvasId : String
+    , maxIterations : Int
+    , batchSize : Int
     }
 
 
 init : flags -> Int -> ( Model, Cmd Msg )
 init _ size =
+    let
+        canvasId =
+            "mandelbrot"
+    in
     ( { width = size
       , height = size
       , computedRow = 0
       , min = C.complex -2 -1.5
       , max = C.complex 1 1.5
+      , canvasId = canvasId
+      , maxIterations = 40
+      , batchSize = 50
       }
-    , sendInitialSettings { width = size, height = size }
+    , sendInitialSettings { width = size, height = size, canvasId = canvasId }
     )
 
 
@@ -94,7 +114,7 @@ update msg model =
         SettingsSet ->
             ( model
             , Task.succeed ()
-                |> Task.perform (\_ -> CalculateNextRows 10)
+                |> Task.perform (\_ -> CalculateNextRows model.batchSize)
             )
 
         CalculateNextRow ->
@@ -158,25 +178,17 @@ subscriptions _ =
 
 viewDocument : Model -> Browser.Document Msg
 viewDocument model =
-    { title = ""
+    { title = "Mandelbrot"
     , body = [ view model ]
     }
 
 
 view : Model -> Html Msg
 view model =
-    H.canvas [ HA.width model.width, HA.height model.height, HA.id "mandelbrot", HA.style "padding" "8px" ] []
+    H.canvas [ HA.width model.width, HA.height model.height, HA.id model.canvasId ] []
 
 
-logBaseConst =
-    1 / 2
-
-
-logHalfBaseConst =
-    1 / 2
-
-
-calculate : Int -> Complex -> Int -> Complex -> Maybe Int
+calculate : Int -> Complex -> Int -> Complex -> Maybe Float
 calculate maxIterations c iterations z =
     let
         z_ =
@@ -186,8 +198,11 @@ calculate maxIterations c iterations z =
         Nothing
 
     else if normSquared z_ >= 4 then
-        -- Just <| 5 + iterations - logHalfbaseConst - (logBase Basics.e <| logBase Basics.e )
-        Just iterations
+        let
+            nSmooth =
+                toFloat iterations + 1 - logBase e (logBase e (C.toPolar z_).abs) / logBase e 2
+        in
+        Just <| (nSmooth / toFloat maxIterations)
 
     else
         calculate maxIterations c (iterations + 1) z_
@@ -261,23 +276,17 @@ computeCell row col model =
         cRe =
             minRe + (maxRe - minRe) * colPercent
 
-        -- C.real model.min |> R.add ((C.real model.max |> R.add (R.negate <| C.real model.min)) |> R.multiply (Real colPercent))
         cIm =
             minIm + (maxIm - minIm) * rowPercent
 
-        -- (I.imaginary <| C.imaginary <| model.min) |> R.add (((I.imaginary <| C.imaginary model.max) |> R.add (R.negate <| I.imaginary <| C.imaginary model.min)) |> R.multiply (Real rowPercent))
         c =
             C.complex cRe cIm
 
         valueM =
-            calculate 100 c 0 c
+            calculate model.maxIterations c 0 c
     in
-    case valueM of
-        Just value ->
-            determineColour value
-
-        Nothing ->
-            Color.toRgba Color.black
+    Maybe.andThen viridisColourMapRefined valueM
+        |> Maybe.withDefault (Color.toRgba Color.black)
 
 
 computeRow : Int -> Model -> List MyColour
