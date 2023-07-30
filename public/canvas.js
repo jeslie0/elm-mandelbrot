@@ -1,9 +1,12 @@
-const mandlebrotCanvas = document.getElementById("mandelbrot");
-const ctx = mandlebrotCanvas.getContext("2d");
-const imageData = ctx.createImageData(400, 400)
+let mandlebrotCanvas;
+let ctx;
+
+let canvasHeight;
+let canvasWidth;
+
+let imageData;
 
 const addRow = (rowData) => {
-    console.log("adding row", rowData)
     const { row, computedColours } = rowData;
 
     const offset = 4 * row * computedColours.length;
@@ -21,6 +24,20 @@ const addRow = (rowData) => {
     ctx.putImageData(imageData, 0, 0);
 }
 
+const setInitialSettings = (settings) => {
+    const {height, width} = settings
+
+    canvasHeight = height
+    canvasWidth = width
+
+    mandlebrotCanvas = document.getElementById("mandelbrot");
+    ctx = mandlebrotCanvas.getContext("2d");
+    imageData = ctx.createImageData(width, height);
+
+    app.ports.settingsSet.send(1);
+}
+
 
 
 app.ports.sendRow.subscribe(addRow)
+app.ports.sendInitialSettings.subscribe(setInitialSettings)

@@ -3,18 +3,12 @@ port module Main exposing (..)
 import Browser
 import Color
 import ComplexNumbers as C exposing (ComplexNumber(..))
-import Html as H exposing (Attribute, Html)
+import Html as H exposing (Html)
 import Html.Attributes as HA
-import Html.Lazy as Lazy
 import Imaginary as I exposing (Imaginary(..))
-import IncrementalMandelbrot
-import List as L
-import Mandelbrot
 import Process
 import Real as R exposing (Real(..))
 import Task
-import ViewCanvas
-import ViewHtml
 
 
 
@@ -29,24 +23,19 @@ type alias MyColour =
     }
 
 
-type alias PixelData =
-    { row : Int
-    , col : Int
-    , computedColour : MyColour
-    }
-
-
 type alias RowData =
     { row : Int
     , computedColours : List MyColour
     }
 
 
-port sendPixel : PixelData -> Cmd msg
+port sendInitialSettings : { height : Int, width : Int } -> Cmd msg
+
+
+port settingsSet : (Int -> msg) -> Sub msg
 
 
 port sendRow : RowData -> Cmd msg
-
 
 
 -- * MAIN
@@ -55,10 +44,10 @@ port sendRow : RowData -> Cmd msg
 main : Program () Model Msg
 main =
     Browser.document
-        { init = \flags -> init flags 400
+        { init = \flags -> init flags 800
         , view = \model -> { title = "", body = [ view model ] }
         , update = update
-        , subscriptions = always Sub.none
+        , subscriptions = subscriptions
         }
 
 
@@ -83,9 +72,8 @@ init _ size =
       , min = ComplexNumber (Real -2) (Imaginary <| Real -1.5)
       , max = ComplexNumber (Real 1) (Imaginary <| Real 1.5)
       }
-    , Task.succeed ()
-        |> Task.perform
-            (always CalculateNextRow)
+    ,  sendInitialSettings { width = size, height = size }
+
     )
 
 
@@ -95,11 +83,18 @@ init _ size =
 
 type Msg
     = CalculateNextRow
+    | SettingsSet
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case Debug.log "msg" msg of
+    case msg of
+        SettingsSet ->
+            ( model
+            , Task.succeed ()
+                |> Task.perform (\_ -> CalculateNextRow)
+            )
+
         CalculateNextRow ->
             ( { model | computedRow = model.computedRow + 1 }
             , let
@@ -108,7 +103,7 @@ update msg model =
                     , computedColours = computeRow model.computedRow model
                     }
               in
-              if model.computedRow >= model.height then
+              if model.computedRow > model.height then
                 Cmd.none
 
               else
@@ -123,10 +118,9 @@ update msg model =
 
 -- * SUBSCRIPTIONS
 
-
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.none
+    settingsSet (\_ -> SettingsSet)
 
 
 
@@ -231,5 +225,8 @@ computeRow row model =
             else
                 acc
     in
-        helper (model.width) []
-    -- L.foldl (\a b -> computeCell row a model :: b) [] (L.reverse <| L.range 0 model.width)
+    helper model.width []
+
+
+
+-- L.foldl (\a b -> computeCell row a model :: b) [] (L.reverse <| L.range 0 model.width)
