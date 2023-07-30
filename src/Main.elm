@@ -2,12 +2,10 @@ port module Main exposing (..)
 
 import Browser
 import Color
-import ComplexNumbers as C exposing (ComplexNumber(..))
+import Complex as C exposing (Complex)
 import Html as H exposing (Html)
 import Html.Attributes as HA
-import Imaginary as I exposing (Imaginary(..))
 import Process
-import Real as R exposing (Real(..))
 import Task
 
 
@@ -63,8 +61,8 @@ type alias Model =
     { height : Int
     , width : Int
     , computedRow : Int
-    , min : ComplexNumber Float
-    , max : ComplexNumber Float
+    , min : Complex
+    , max : Complex
     }
 
 
@@ -73,8 +71,8 @@ init _ size =
     ( { width = size
       , height = size
       , computedRow = 0
-      , min = ComplexNumber (Real -2) (Imaginary <| Real -1.5)
-      , max = ComplexNumber (Real 1) (Imaginary <| Real 1.5)
+      , min = C.complex -2 -1.5
+      , max = C.complex 1 1.5
       }
     , sendInitialSettings { width = size, height = size }
     )
@@ -170,7 +168,15 @@ view model =
     H.canvas [ HA.width model.width, HA.height model.height, HA.id "mandelbrot", HA.style "padding" "8px" ] []
 
 
-calculate : Int -> ComplexNumber Float -> Int -> ComplexNumber Float -> Maybe Int
+logBaseConst =
+    1 / 2
+
+
+logHalfBaseConst =
+    1 / 2
+
+
+calculate : Int -> Complex -> Int -> Complex -> Maybe Int
 calculate maxIterations c iterations z =
     let
         z_ =
@@ -180,15 +186,26 @@ calculate maxIterations c iterations z =
         Nothing
 
     else if normSquared z_ >= 4 then
+        -- Just <| 5 + iterations - logHalfbaseConst - (logBase Basics.e <| logBase Basics.e )
         Just iterations
 
     else
         calculate maxIterations c (iterations + 1) z_
 
 
-normSquared : ComplexNumber number -> number
+normSquared : Complex -> Float
 normSquared z =
-    R.real (R.multiply (C.real z) (C.real z) |> R.add (R.multiply (I.imaginary <| C.imaginary z) (I.imaginary <| C.imaginary z)))
+    let
+        zCartesian =
+            C.toCartesian z
+
+        zRe =
+            zCartesian.re
+
+        zIm =
+            zCartesian.im
+    in
+    (zRe * zRe) + (zIm * zIm)
 
 
 determineColour : Int -> MyColour
@@ -223,16 +240,34 @@ computeCell row col model =
         rowPercent =
             toFloat row / toFloat model.height
 
+        minCartesian =
+            C.toCartesian model.min
+
+        maxCartesian =
+            C.toCartesian model.max
+
+        minRe =
+            minCartesian.re
+
+        minIm =
+            minCartesian.im
+
+        maxRe =
+            maxCartesian.re
+
+        maxIm =
+            maxCartesian.im
+
         cRe =
-            C.real model.min |> R.add ((C.real model.max |> R.add (R.negate <| C.real model.min)) |> R.multiply (Real colPercent))
+            minRe + (maxRe - minRe) * colPercent
 
+        -- C.real model.min |> R.add ((C.real model.max |> R.add (R.negate <| C.real model.min)) |> R.multiply (Real colPercent))
         cIm =
-            (I.imaginary <| C.imaginary <| model.min) |> R.add (((I.imaginary <| C.imaginary model.max) |> R.add (R.negate <| I.imaginary <| C.imaginary model.min)) |> R.multiply (Real rowPercent))
+            minIm + (maxIm - minIm) * rowPercent
 
+        -- (I.imaginary <| C.imaginary <| model.min) |> R.add (((I.imaginary <| C.imaginary model.max) |> R.add (R.negate <| I.imaginary <| C.imaginary model.min)) |> R.multiply (Real rowPercent))
         c =
-            ComplexNumber
-                cRe
-                (Imaginary cIm)
+            C.complex cRe cIm
 
         valueM =
             calculate 100 c 0 c
