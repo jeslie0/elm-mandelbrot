@@ -56,11 +56,12 @@ port sendRows : List RowData -> Cmd msg
 main : Program () Model Msg
 main =
     Browser.document
-        { init = \flags -> init flags 1080
-        , view = \model -> { title = "", body = [ view model ] }
+        { init = \flags -> init flags 3840
+        , view = \model -> { title = "Elm Mandelbrot (4k)", body = [ view model ] }
         , update = update
         , subscriptions = subscriptions
         }
+
 
 
 
@@ -92,7 +93,7 @@ init _ size =
       , max = C.complex 1 1.5
       , canvasId = canvasId
       , maxIterations = 40
-      , batchSize = 50
+      , batchSize = 100
       }
     , sendInitialSettings { width = size, height = size, canvasId = canvasId }
     )
