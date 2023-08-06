@@ -20,6 +20,7 @@
             name = elmPackageName;
             src = ./.;
             outputJavaScript = true;
+            targets = ["src/WebGLMandelBrot.elm"];
           };
       in
         {
@@ -29,7 +30,7 @@
             src = ./public;
             buildInputs = [elmPackage];
             buildPhase = ''
-                         cp ${elmPackage}/Main.min.js main.min.js
+                         cp ${elmPackage}/WebGLMandelBrot.min.js main.min.js
                          '';
             installPhase = ''
                          mkdir $out

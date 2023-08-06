@@ -83,7 +83,6 @@ view model =
     WebGL.toHtml
         [ HA.width <| round model.screenWidth
         , HA.height <| round model.screenHeight
-        , HA.style "overflow" "disabled"
         ]
         [ WebGL.entity
             vertexShader
