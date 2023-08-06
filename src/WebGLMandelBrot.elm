@@ -1,12 +1,15 @@
 module WebGLMandelBrot exposing (main)
 
 import Browser
+import Browser.Dom exposing (getViewport)
+import Browser.Events exposing (onResize)
 import Html as H exposing (Html)
 import Html.Attributes as HA
 import Math.Vector2 exposing (Vec2, vec2)
 import Math.Vector3 exposing (Vec3, vec3)
 import Math.Vector4 exposing (Vec4, vec4)
 import String exposing (fromInt)
+import Task
 import WebGL exposing (Mesh, Shader)
 
 
@@ -25,12 +28,30 @@ main =
 
 
 type alias Model =
-    {}
+    { screenWidth : Float
+    , screenHeight : Float
+    }
 
 
 init : flags -> ( Model, Cmd Msg )
 init _ =
-    ( {}, Cmd.none )
+    ( { screenWidth = 400
+      , screenHeight = 400
+      }
+    , Task.attempt
+        (\result ->
+            case result of
+                Ok val ->
+                    GetScreenDimensions
+                        { width = val.viewport.width
+                        , height = val.viewport.height
+                        }
+
+                Err _ ->
+                    GetScreenDimensions { width = 400, height = 400 }
+        )
+        getViewport
+    )
 
 
 
@@ -38,19 +59,19 @@ init _ =
 
 
 type Msg
-    = Foo
+    = GetScreenDimensions { width : Float, height : Float }
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    onResize (\w h -> GetScreenDimensions { width = toFloat w, height = toFloat h })
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Foo ->
-            ( {}, Cmd.none )
+        GetScreenDimensions { width, height } ->
+            ( { model | screenWidth = width, screenHeight = height }, Cmd.none )
 
 
 
@@ -59,20 +80,21 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    H.div
-        [ HA.width 500
-        , HA.height 500
+    WebGL.toHtml
+        [ HA.width <| round model.screenWidth
+        , HA.height <| round model.screenHeight
+        , HA.style "overflow" "disabled"
         ]
-        [ WebGL.toHtml
-            [ HA.width 500
-            , HA.height 500
-            ]
-            [ WebGL.entity
-                vertexShader
-                fragmentShader
-                mesh
-                { resolution = vec2 500 500 }
-            ]
+        [ WebGL.entity
+            vertexShader
+            fragmentShader
+            mesh
+            { screenWidth = model.screenWidth
+            , screenHeight = model.screenHeight
+            , xOffset = 0
+            , yOffset = 0
+            , zoom = 1.1
+            }
         ]
 
 
@@ -84,50 +106,58 @@ mesh : Mesh Vertex
 mesh =
     -- These determine the pixel position
     WebGL.triangles
-        [ ( Vertex (vec2 -2 -2)
-          , Vertex (vec2 2 -2)
-          , Vertex (vec2 -2 2)
+        [ ( Vertex (vec2 -1 -1)
+          , Vertex (vec2 1 -1)
+          , Vertex (vec2 -1 1)
           )
-        , ( Vertex (vec2 -2 2)
-          , Vertex (vec2 2 -2)
-          , Vertex (vec2 2 2)
+        , ( Vertex (vec2 -1 1)
+          , Vertex (vec2 1 -1)
+          , Vertex (vec2 1 1)
           )
         ]
 
 
 type alias Uniform =
-    { resolution : Vec2 }
+    { screenWidth : Float
+    , screenHeight : Float
+    , xOffset : Float
+    , yOffset : Float
+    , zoom : Float
+    }
 
 
-vertexShader : Shader Vertex Uniform { vpos : Vec2 }
+type alias Varying =
+    { vpos : Vec2
+    }
+
+
+vertexShader : Shader Vertex Uniform Varying
 vertexShader =
     [glsl|
 
          precision highp float;
          attribute vec2 position;
+         uniform float screenWidth;
+         uniform float screenHeight;
+         uniform float zoom;
          varying vec2 vpos;
 
          void main()
          {
-             gl_Position = vec4(position.x + 0.5, position.y, 0.0, 1);
-             vpos = vec2(position.x, position.y);
+             float aspect_ratio = screenWidth / screenHeight;
+             gl_Position = vec4(position.x, position.y, 0.0, 1);
+             vpos = vec2((position.x - 0.1) * 1.5 / zoom * aspect_ratio, position.y * 1.5 / zoom);
          }
 
 |]
 
 
-t : Int
-t =
-    1
-
-
-fragmentShader : Shader {} Uniform { vpos : Vec2 }
+fragmentShader : Shader {} Uniform Varying
 fragmentShader =
     [glsl|
 
          precision highp float;
          varying vec2 vpos;
-         uniform vec2 resolution;
 
 precision mediump float;
 
